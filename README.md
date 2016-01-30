@@ -12,6 +12,7 @@ most affected.
 Pull requests are ordered by total modification size (additions +
 deletions).
 
+```
 Usage:
   digest :owner/:repo --token=:access_token [flags]
 
@@ -29,3 +30,4 @@ Flags:
   -t, --token string       GitHub access token for authorized rate limits
       --verbosity          log level for V logs
       --vmodule            comma-separated list of pattern=N settings for file-filtered logging
+```
