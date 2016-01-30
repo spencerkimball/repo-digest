@@ -14,10 +14,10 @@ deletions).
 
 ```
 Usage:
-  digest :owner/:repo --token=:access_token [flags]
+  digest [flags]
 
 Examples:
-  digest cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc
+  digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc
 
 Flags:
       --alsologtostderr    log to standard error as well as files

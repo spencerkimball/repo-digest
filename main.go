@@ -49,7 +49,7 @@ func normalizeStdFlagName(s string) string {
 }
 
 var digestCmd = &cobra.Command{
-	Use:   "digest :owner/:repo --token=:access_token",
+	Use:   "digest",
 	Short: "generate daily digests of repository activity",
 	Long: `
 Generate an HTML digest of repository activity (default stylesheet
@@ -64,7 +64,7 @@ most affected.
 Pull requests are ordered by total modification size (additions +
 deletions).
 `,
-	Example: `  digest cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
+	Example: `  digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
 }
 
