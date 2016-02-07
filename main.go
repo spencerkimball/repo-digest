@@ -103,7 +103,7 @@ most affected.
 Pull requests are ordered by total modification size (additions +
 deletions).
 `,
-	Example: `  repo-digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
+	Example: `  digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
 }
 
