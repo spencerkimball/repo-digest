@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spencerkimball/repo-digest/cmd"
+	"github.com/cockroachdb/cockroach/util/log"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +49,41 @@ func normalizeStdFlagName(s string) string {
 	return strings.Replace(s, "_", "-", -1)
 }
 
+func mustParseTime3339(tStr string) time.Time {
+	t, err := time.Parse(time.RFC3339, tStr)
+	if err != nil {
+		panic(fmt.Sprintf("couldn't parse time %q: %s", tStr, err))
+	}
+	return t
+}
+
+var accessToken string
+
+const accessTokenDesc = "GitHub access token for authorized rate limits"
+
+func getAccessToken() (string, error) {
+	if len(accessToken) == 0 {
+		return "", errors.New(`An access token must be specified via --token.
+
+To generate an access token for accessing repo stars and gaining authorized
+rate limits, see:
+
+https://help.github.com/articles/creating-an-access-token-for-command-line-use/
+
+When creating a token, ensure that only the public_repo permission is enabled.
+`)
+	}
+	return accessToken, nil
+}
+
+var fetchSince string
+
+const fetchSinceDesc = "Fetch all opened and closed pull requests since this date"
+
+var repo string
+
+const repoDesc = "GitHub owner and repository, formatted as :owner/:repo"
+
 var digestCmd = &cobra.Command{
 	Use:   "digest",
 	Short: "generate daily digests of repository activity",
@@ -57,6 +93,9 @@ included). The digest includes two sections: a list of all newly-open
 pull requests as well as a list of all recently-committed pull
 requests.
 
+Fetches GitHub data for the specified repository and computes the digest
+since the --since date. The digest contains two sections including:
+
 Each pull request includes basic information, including title, author,
 date, and metrics about which subdirectories of the repository are
 most affected.
@@ -64,14 +103,53 @@ most affected.
 Pull requests are ordered by total modification size (additions +
 deletions).
 `,
-	Example: `  digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
+	Example: `  repo-digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
 }
 
 func runDigest(c *cobra.Command, args []string) error {
-	if err := cmd.RunDigest(cmd.DigestCmd, args); err != nil {
+	if len(repo) == 0 {
+		return errors.New("repository not specified; use --repo=:owner/:repo")
+	}
+	token, err := getAccessToken()
+	if err != nil {
 		return err
 	}
+	log.Infof("fetching GitHub data for repository %s", repo)
+	fetchSinceDate, err := time.Parse(time.RFC3339, fetchSince)
+	if err != nil {
+		return err
+	}
+	ctx := &Context{
+		Repo:       repo,
+		Token:      token,
+		FetchSince: fetchSinceDate,
+	}
+	open, closed, err := Query(ctx)
+	if err != nil {
+		log.Errorf("failed to query data: %s", err)
+		return nil
+	}
+	log.Infof("creating digest for repository %s", repo)
+	if err := Digest(ctx, open, closed); err != nil {
+		log.Errorf("failed to create digest: %s", err)
+		return nil
+	}
+	var latestTime time.Time
+	for _, pr := range open {
+		if t := mustParseTime3339(pr.CreatedAt); t.After(latestTime) {
+			latestTime = t
+		}
+	}
+	for _, pr := range closed {
+		if t := mustParseTime3339(pr.ClosedAt); t.After(latestTime) {
+			latestTime = t
+		}
+	}
+	if len(open)+len(closed) == 0 {
+		latestTime = time.Now()
+	}
+	log.Infof("next digest should specify --since=%s", latestTime.Format(time.RFC3339))
 	return nil
 }
 
@@ -86,9 +164,9 @@ func init() {
 	now = now.Truncate(time.Hour * 24)
 	defaultSince := now.Format(time.RFC3339)
 	// Add persistent flags to the top-level command.
-	digestCmd.PersistentFlags().StringVarP(&cmd.Repo, "repo", "r", "", cmd.RepoDesc)
-	digestCmd.PersistentFlags().StringVarP(&cmd.FetchSince, "since", "s", defaultSince, cmd.FetchSinceDesc)
-	digestCmd.PersistentFlags().StringVarP(&cmd.AccessToken, "token", "t", "", cmd.AccessTokenDesc)
+	digestCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", repoDesc)
+	digestCmd.PersistentFlags().StringVarP(&fetchSince, "since", "s", defaultSince, fetchSinceDesc)
+	digestCmd.PersistentFlags().StringVarP(&accessToken, "token", "t", "", accessTokenDesc)
 }
 
 // Run ...

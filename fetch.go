@@ -14,7 +14,7 @@
 //
 // Author: Spencer Kimball (spencer.kimball@gmail.com)
 
-package fetch
+package main
 
 import (
 	"encoding/json"

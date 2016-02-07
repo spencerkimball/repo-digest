@@ -14,7 +14,7 @@
 //
 // Author: Spencer Kimball (spencer.kimball@gmail.com)
 
-package fetch
+package main
 
 import (
 	"fmt"
@@ -229,15 +229,15 @@ func (pr *PullRequest) Subdirectories() []*Subdirectory {
 // on the total number of changes in the pull request.
 func (pr *PullRequest) Class() string {
 	if tc := pr.TotalChanges(); tc < tinyPR {
-		return "tiny"
+		return "&#9679;"
 	} else if tc < smallPR {
-		return "small"
+		return "&#9679;&#9679;"
 	} else if tc < mediumPR {
-		return "medium"
+		return "&#9679;&#9679;&#9679;"
 	} else if tc < largePR {
-		return "large"
+		return "&#9679;&#9679;&#9679;&#9679;"
 	}
-	return "huge"
+	return "&#9679;&#9679;&#9679;&#9679;&#9679;"
 }
 
 // CreatedAtStr returns created at timestap in human-readable format
