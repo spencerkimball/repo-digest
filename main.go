@@ -57,35 +57,16 @@ func mustParseTime3339(tStr string) time.Time {
 	return t
 }
 
-var accessToken string
-
 const accessTokenDesc = "GitHub access token for authorized rate limits"
-
-func getAccessToken() (string, error) {
-	if len(accessToken) == 0 {
-		return "", errors.New(`An access token must be specified via --token.
-
-To generate an access token for accessing repo stars and gaining authorized
-rate limits, see:
-
-https://help.github.com/articles/creating-an-access-token-for-command-line-use/
-
-When creating a token, ensure that only the public_repo permission is enabled.
-`)
-	}
-	return accessToken, nil
-}
-
-var fetchSince string
 
 const fetchSinceDesc = "Fetch all opened and closed pull requests since this date"
 
-var repo string
-
 const repoDesc = "GitHub owner and repository, formatted as :owner/:repo"
 
+const templateDesc = "Go HTML template filename (see templates/ for examples)"
+
 var digestCmd = &cobra.Command{
-	Use:   "digest",
+	Use:   "repo-digest",
 	Short: "generate daily digests of repository activity",
 	Long: `
 Generate an HTML digest of repository activity (default stylesheet
@@ -102,36 +83,47 @@ most affected.
 
 Pull requests are ordered by total modification size (additions +
 deletions).
+
+An access token can be specified via --token. By default, uses an empty
+token, which is limited to only 50 GitHub requests per hour, rate limited
+based on IP address.
+
+To generate an access token with authorized rate limits (5000/hr), see:
+
+https://help.github.com/articles/creating-an-access-token-for-command-line-use/
+
+When creating a token, ensure that only the public_repo permission is enabled.
 `,
-	Example: `  digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
+	Example: `  repo-digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
 }
 
+// Context holds config information used to query GitHub.
+type Context struct {
+	Repo         string    // Repository (:owner/:repo)
+	Token        string    // Access token
+	FetchSince   time.Time // Fetch all opened and closed PRs since this time
+	Template     string    // HTML template filename
+	acceptHeader string    // Optional Accept: header value
+}
+
+var ctx = Context{}
+
 func runDigest(c *cobra.Command, args []string) error {
-	if len(repo) == 0 {
+	if len(ctx.Repo) == 0 {
 		return errors.New("repository not specified; use --repo=:owner/:repo")
 	}
-	token, err := getAccessToken()
-	if err != nil {
-		return err
+	if len(ctx.Template) == 0 {
+		return errors.New("template not specified; use --template=:html_template")
 	}
-	log.Infof("fetching GitHub data for repository %s", repo)
-	fetchSinceDate, err := time.Parse(time.RFC3339, fetchSince)
-	if err != nil {
-		return err
-	}
-	ctx := &Context{
-		Repo:       repo,
-		Token:      token,
-		FetchSince: fetchSinceDate,
-	}
-	open, closed, err := Query(ctx)
+	log.Infof("fetching GitHub data for repository %s", ctx.Repo)
+	open, closed, err := Query(&ctx)
 	if err != nil {
 		log.Errorf("failed to query data: %s", err)
 		return nil
 	}
-	log.Infof("creating digest for repository %s", repo)
-	if err := Digest(ctx, open, closed); err != nil {
+	log.Infof("creating digest for repository %s", ctx.Repo)
+	if err := Digest(&ctx, open, closed); err != nil {
 		log.Errorf("failed to create digest: %s", err)
 		return nil
 	}
@@ -163,10 +155,18 @@ func init() {
 	now := time.Now().Local()
 	now = now.Truncate(time.Hour * 24)
 	defaultSince := now.Format(time.RFC3339)
+	var since string
 	// Add persistent flags to the top-level command.
-	digestCmd.PersistentFlags().StringVarP(&repo, "repo", "r", "", repoDesc)
-	digestCmd.PersistentFlags().StringVarP(&fetchSince, "since", "s", defaultSince, fetchSinceDesc)
-	digestCmd.PersistentFlags().StringVarP(&accessToken, "token", "t", "", accessTokenDesc)
+	digestCmd.PersistentFlags().StringVarP(&ctx.Repo, "repo", "r", ctx.Repo, repoDesc)
+	digestCmd.PersistentFlags().StringVarP(&since, "since", "s", defaultSince, fetchSinceDesc)
+	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
+	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)
+
+	var err error
+	if ctx.FetchSince, err = time.Parse(time.RFC3339, since); err != nil {
+		log.Errorf("failed to parse --since=%s: %s", since, err)
+		os.Exit(1)
+	}
 }
 
 // Run ...

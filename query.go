@@ -59,14 +59,6 @@ func skipFile(f string) bool {
 	return false
 }
 
-// Context holds config information used to query GitHub.
-type Context struct {
-	Repo         string    // Repository (:owner/:repo)
-	Token        string    // Access token
-	FetchSince   time.Time // Fetch all opened and closed PRs since this time
-	acceptHeader string    // Optional Accept: header value
-}
-
 type User struct {
 	Login            string `json:"login"`
 	ID               int    `json:"id"`
