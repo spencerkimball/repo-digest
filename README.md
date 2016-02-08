@@ -35,9 +35,11 @@ Examples:
 Flags:
       --alsologtostderr    log to standard error as well as files
       --color              colorize standard error output according to severity (default "auto")
+      --inline-styles      Inline styles in generated html; good for standalone files (default true)
       --log-backtrace-at   when logging hits line file:N, emit a stack trace (default :0)
       --log-dir            if non-empty, write log files in this directory
       --logtostderr        log to standard error instead of files (default true)
+  -o, --outdir string      Output directory
   -r, --repo string        GitHub owner and repository, formatted as :owner/:repo
   -s, --since string       Fetch all opened and closed pull requests since this date (default "2016-02-07T19:00:00-05:00")
   -p, --template string    Go HTML template filename (see templates/ for examples)

@@ -67,6 +67,8 @@ const templateDesc = "Go HTML template filename (see templates/ for examples)"
 
 const outDirDesc = "Output directory"
 
+const inlineStylesDesc = "Inline styles in generated html; good for standalone files"
+
 var digestCmd = &cobra.Command{
 	Use:   "repo-digest",
 	Short: "generate daily digests of repository activity",
@@ -107,6 +109,7 @@ type Context struct {
 	FetchSince   time.Time // Fetch all opened and closed PRs since this time
 	Template     string    // HTML template filename
 	OutDir       string    // Output directory
+	InlineStyles bool      // Inline style into generated html
 	acceptHeader string    // Optional Accept: header value
 }
 
@@ -165,6 +168,7 @@ func init() {
 	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.OutDir, "outdir", "o", ctx.OutDir, outDirDesc)
+	digestCmd.PersistentFlags().BoolVar(&ctx.InlineStyles, "inline-styles", true, inlineStylesDesc)
 
 	var err error
 	if ctx.FetchSince, err = time.Parse(time.RFC3339, since); err != nil {

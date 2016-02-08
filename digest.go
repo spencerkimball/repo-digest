@@ -78,12 +78,16 @@ func Digest(c *Context, open, closed []*PullRequest) error {
 		return err
 	}
 
-	options := premailer.NewOptions()
-	options.CssToAttributes = true
-	prem := premailer.NewPremailerFromString(buf.String(), options)
-	html, err := prem.Transform()
-	if err != nil {
-		return err
+	contents := buf.String()
+
+	if c.InlineStyles {
+		options := premailer.NewOptions()
+		options.CssToAttributes = true
+		prem := premailer.NewPremailerFromString(buf.String(), options)
+		contents, err = prem.Transform()
+		if err != nil {
+			return err
+		}
 	}
 
 	f, err := createFile(c.OutDir, fmt.Sprintf("digest-%s.html", now.Format("01-02-2006")))
@@ -92,7 +96,7 @@ func Digest(c *Context, open, closed []*PullRequest) error {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(html)
+	_, err = f.WriteString(contents)
 	if err != nil {
 		return err
 	}
