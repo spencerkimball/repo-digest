@@ -65,6 +65,10 @@ const repoDesc = "GitHub owner and repository, formatted as :owner/:repo"
 
 const templateDesc = "Go HTML template filename (see templates/ for examples)"
 
+const outDirDesc = "Output directory"
+
+const inlineStylesDesc = "Inline styles in generated html; good for standalone files"
+
 var digestCmd = &cobra.Command{
 	Use:   "repo-digest",
 	Short: "generate daily digests of repository activity",
@@ -104,6 +108,8 @@ type Context struct {
 	Token        string    // Access token
 	FetchSince   time.Time // Fetch all opened and closed PRs since this time
 	Template     string    // HTML template filename
+	OutDir       string    // Output directory
+	InlineStyles bool      // Inline style into generated html
 	acceptHeader string    // Optional Accept: header value
 }
 
@@ -141,7 +147,7 @@ func runDigest(c *cobra.Command, args []string) error {
 	if len(open)+len(closed) == 0 {
 		latestTime = time.Now()
 	}
-	log.Infof("next digest should specify --since=%s", latestTime.Format(time.RFC3339))
+	fmt.Fprintf(os.Stdout, "nextsince: %s\n", latestTime.Format(time.RFC3339))
 	return nil
 }
 
@@ -161,6 +167,8 @@ func init() {
 	digestCmd.PersistentFlags().StringVarP(&since, "since", "s", defaultSince, fetchSinceDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)
+	digestCmd.PersistentFlags().StringVarP(&ctx.OutDir, "outdir", "o", ctx.OutDir, outDirDesc)
+	digestCmd.PersistentFlags().BoolVar(&ctx.InlineStyles, "inline-styles", true, inlineStylesDesc)
 
 	var err error
 	if ctx.FetchSince, err = time.Parse(time.RFC3339, since); err != nil {
