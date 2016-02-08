@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,8 +26,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/cockroachdb/cockroach/util/log"
 	"github.com/shurcooL/github_flavored_markdown"
+	"github.com/vanng822/go-premailer/premailer"
 )
 
 type PullRequests []*PullRequest
@@ -57,12 +58,6 @@ func Digest(c *Context, open, closed []*PullRequest) error {
 
 	// Open file for digest HTML.
 	now := time.Now()
-	f, err := createFile(fmt.Sprintf("digest-%s.html", now.Format("01-02-2006")))
-	if err != nil {
-		return fmt.Errorf("failed to create file: %s", err)
-	}
-	defer f.Close()
-
 	content := struct {
 		Repo   string
 		Open   []*PullRequest
@@ -77,18 +72,37 @@ func Digest(c *Context, open, closed []*PullRequest) error {
 		return fmt.Errorf("failed to read template file %q: %s", c.Template, err)
 	}
 	tmpl := template.Must(template.New("digest").Funcs(template.FuncMap{"markDown": markDowner}).Parse(string(htmlTemplate)))
+
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, content); err != nil {
+		return err
+	}
+
+	options := premailer.NewOptions()
+	options.CssToAttributes = true
+	prem := premailer.NewPremailerFromString(buf.String(), options)
+	html, err := prem.Transform()
 	if err != nil {
 		return err
 	}
-	if err = tmpl.Execute(f, content); err != nil {
+
+	f, err := createFile(c.OutDir, fmt.Sprintf("digest-%s.html", now.Format("01-02-2006")))
+	if err != nil {
 		return err
 	}
-	log.Infof("wrote HTML digest to %s", f.Name())
+	defer f.Close()
+
+	_, err = f.WriteString(html)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stdout, "digest: %s\n", f.Name())
 	return nil
 }
 
-func createFile(baseName string) (*os.File, error) {
-	filename := filepath.Join("./", baseName)
+func createFile(dir, baseName string) (*os.File, error) {
+	filename := filepath.Join(dir, baseName)
 	f, err := os.Create(filename)
 	if err != nil {
 		return nil, err
