@@ -118,10 +118,10 @@ td {
       <tr class="header">
         <td class="title">
           <a href="{{ .HtmlURL }}">{{ .Title }}</a>
-          <div class="stats">Opened by {{ .User.Login }} at {{ .CreatedAtStr }} with {{ .Additions }} additions, {{ .Deletions }} deletions, {{ .Comments }} comments</div>
-          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">IMPORTANCE</span>&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="stats">Opened by {{ .User.Login }} at {{ .CreatedAtStr }} with {{ .AdditionsStr }} additions, {{ .DeletionsStr }} deletions, {{ .CommentsStr }} comments</div>
+          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">SIZE</span>&nbsp;&nbsp;&nbsp;&nbsp;
             {{ range $index, $el := .Subdirectories}}
-              <span class="subdirectory">{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChanges}}</span>{{if $index}},&nbsp;&nbsp;{{end}}
+              <span class="subdirectory">{{if $index}},&nbsp;&nbsp;{{end}}{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChangesStr}}</span>
             {{end}}
           </div>
         </td>
@@ -144,10 +144,10 @@ td {
       <tr class="header">
         <td class="title">
           <a href="{{ .HtmlURL }}">{{ .Title }}</a>
-          <div class="stats">Closed by {{ .User.Login }} at {{ .ClosedAtStr }} with {{ .Additions }} additions, {{ .Deletions }} deletions, {{ .Comments }} comments</div>
-          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">IMPORTANCE</span>&nbsp;&nbsp;&nbsp;&nbsp;
+          <div class="stats">Closed by {{ .MergedBy.Login }} at {{ .ClosedAtStr }} with {{ .AdditionsStr }} additions, {{ .DeletionsStr }} deletions, {{ .CommentsStr }} comments</div>
+          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">SIZE</span>&nbsp;&nbsp;&nbsp;&nbsp;
             {{ range $index, $el := .Subdirectories}}
-              <span class="subdirectory">{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChanges}}</span>{{if $index}},&nbsp;&nbsp;{{end}}
+              <span class="subdirectory">{{if $index}},&nbsp;&nbsp;{{end}}{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChangesStr}}</span>
             {{end}}
           </div>
         </td>
