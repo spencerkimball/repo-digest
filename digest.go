@@ -59,11 +59,9 @@ func Digest(c *Context, open, closed []*PullRequest) error {
 	// Open file for digest HTML.
 	now := time.Now()
 	content := struct {
-		Repo   string
 		Open   []*PullRequest
 		Closed []*PullRequest
 	}{
-		Repo:   c.Repo,
 		Open:   sortedOpen,
 		Closed: sortedClosed,
 	}

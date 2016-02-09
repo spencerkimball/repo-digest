@@ -155,12 +155,11 @@ type PullRequest struct {
 	User               User   `json:"user"`
 	Body               string `json:"body"`
 	CreatedAt          string `json:"created_at"`
-	Updatedat          string `json:"updated_at"`
+	UpdatedAt          string `json:"updated_at"`
 	ClosedAt           string `json:"closed_at"`
 	MergedAt           string `json:"merged_at"`
 	MergeCommitSHA     string `json:"merge_commit_sha"`
 	Assignee           User   `json:"assignee"`
-	Milestone          string `json:"milestone"`
 	CommitsURL         string `json:"commits_url"`
 	Review_commentsURL string `json:"review_comments_url"`
 	Review_commentURL  string `json:"review_comment_url"`
@@ -270,15 +269,21 @@ func (pr *PullRequest) ClosedAtStr() string {
 
 // Queries pull requests for the repository. Returns a slice each for
 // open and closed pull requests.
-func Query(c *Context) ([]*PullRequest, []*PullRequest, error) {
-	open, closed, err := QueryPullRequests(c)
-	if err != nil {
+func Query(c *Context) (open, closed []*PullRequest, err error) {
+	for _, repo := range c.Repos {
+		var os []*PullRequest
+		var cs []*PullRequest
+		os, cs, err = QueryPullRequests(c, repo)
+		if err != nil {
+			return nil, nil, err
+		}
+		open = append(open, os...)
+		closed = append(closed, cs...)
+	}
+	if err = QueryDetailedPullRequests(c, open); err != nil {
 		return nil, nil, err
 	}
-	if err := QueryDetailedPullRequests(c, open); err != nil {
-		return nil, nil, err
-	}
-	if err := QueryDetailedPullRequests(c, closed); err != nil {
+	if err = QueryDetailedPullRequests(c, closed); err != nil {
 		return nil, nil, err
 	}
 	return open, closed, nil
@@ -286,9 +291,9 @@ func Query(c *Context) ([]*PullRequest, []*PullRequest, error) {
 
 // QueryPullRequests queries all pull requests from the repo or a
 // day's worth, whichever is greater.
-func QueryPullRequests(c *Context) ([]*PullRequest, []*PullRequest, error) {
-	log.Infof("querying pull requests from %s opened or closed after %s", c.Repo, c.FetchSince.Format(time.RFC3339))
-	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=updated&direction=desc", githubAPI, c.Repo)
+func QueryPullRequests(c *Context, repo string) ([]*PullRequest, []*PullRequest, error) {
+	log.Infof("querying pull requests from %s opened or closed after %s", repo, c.FetchSince.Format(time.RFC3339))
+	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=updated&direction=desc", githubAPI, repo)
 	open, closed := []*PullRequest{}, []*PullRequest{}
 	total := 0
 	var err error
@@ -302,6 +307,16 @@ func QueryPullRequests(c *Context) ([]*PullRequest, []*PullRequest, error) {
 		}
 		total += len(fetched)
 		for _, pr := range fetched {
+			// Break out of loop if updated timestamp is <= FetchSince.
+			t, err := time.Parse(time.RFC3339, pr.UpdatedAt)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !c.FetchSince.Before(t) {
+				done = true
+				break
+			}
+
 			var date string
 			switch pr.State {
 			case "open":
@@ -311,7 +326,7 @@ func QueryPullRequests(c *Context) ([]*PullRequest, []*PullRequest, error) {
 			default:
 				continue
 			}
-			t, err := time.Parse(time.RFC3339, date)
+			t, err = time.Parse(time.RFC3339, date)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -320,14 +335,12 @@ func QueryPullRequests(c *Context) ([]*PullRequest, []*PullRequest, error) {
 					open = append(open, pr)
 				}
 			} else {
-				if t.Before(c.FetchSince) {
-					done = true
-					break
+				if c.FetchSince.Before(t) {
+					closed = append(closed, pr)
 				}
-				closed = append(closed, pr)
 			}
+			fmt.Printf("\r*** %s open %s closed %s total pull requests", format(len(open)), format(len(closed)), format(total))
 		}
-		fmt.Printf("\r*** %s open %s closed %s total pull requests", format(len(open)), format(len(closed)), format(total))
 	}
 	fmt.Printf("\n")
 	return open, closed, nil
