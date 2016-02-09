@@ -61,7 +61,7 @@ const accessTokenDesc = "GitHub access token for authorized rate limits"
 
 const fetchSinceDesc = "Fetch all opened and closed pull requests since this date"
 
-const repoDesc = "GitHub owner and repository, formatted as :owner/:repo"
+const reposDesc = "GitHub repositories, formatted as comma-separated list :owner/:repo[,:owner/:repo,...]"
 
 const templateDesc = "Go HTML template filename (see templates/ for examples)"
 
@@ -104,7 +104,7 @@ When creating a token, ensure that only the public_repo permission is enabled.
 
 // Context holds config information used to query GitHub.
 type Context struct {
-	Repo         string    // Repository (:owner/:repo)
+	Repos        []string  // Repositories (:owner/:repo)
 	Token        string    // Access token
 	FetchSince   time.Time // Fetch all opened and closed PRs since this time
 	Template     string    // HTML template filename
@@ -116,19 +116,19 @@ type Context struct {
 var ctx = Context{}
 
 func runDigest(c *cobra.Command, args []string) error {
-	if len(ctx.Repo) == 0 {
-		return errors.New("repository not specified; use --repo=:owner/:repo")
+	if len(ctx.Repos) == 0 {
+		return errors.New("repositor(ies) not specified; use --repo=:owner/:repo[,:owner/:repo,...]")
 	}
 	if len(ctx.Template) == 0 {
 		return errors.New("template not specified; use --template=:html_template")
 	}
-	log.Infof("fetching GitHub data for repository %s", ctx.Repo)
+	log.Infof("fetching GitHub data for repositor(ies) %s", ctx.Repos)
 	open, closed, err := Query(&ctx)
 	if err != nil {
 		log.Errorf("failed to query data: %s", err)
 		return nil
 	}
-	log.Infof("creating digest for repository %s", ctx.Repo)
+	log.Infof("creating digest for repositor(ies) %s", ctx.Repos)
 	if err := Digest(&ctx, open, closed); err != nil {
 		log.Errorf("failed to create digest: %s", err)
 		return nil
@@ -163,7 +163,7 @@ func init() {
 	defaultSince := now.Format(time.RFC3339)
 	var since string
 	// Add persistent flags to the top-level command.
-	digestCmd.PersistentFlags().StringVarP(&ctx.Repo, "repo", "r", ctx.Repo, repoDesc)
+	digestCmd.PersistentFlags().StringSliceVarP(&ctx.Repos, "repos", "r", ctx.Repos, reposDesc)
 	digestCmd.PersistentFlags().StringVarP(&since, "since", "s", defaultSince, fetchSinceDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)

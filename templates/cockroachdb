@@ -106,7 +106,7 @@ td {
     line-height: 24px;
 }
     </style>
-    <title>Daily Digest of {{.Repo}}</title>
+    <title>Daily Digest</title>
   </head>
   <body>
     <div class="logo">
