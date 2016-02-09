@@ -123,6 +123,10 @@ func (sd *Subdirectory) TotalChanges() int {
 	return total
 }
 
+func (sd *Subdirectory) TotalChangesStr() string {
+	return format(sd.TotalChanges())
+}
+
 type Subdirectories []*Subdirectory
 
 func (slice Subdirectories) Len() int {
@@ -165,7 +169,7 @@ type PullRequest struct {
 	Merged             bool   `json:"merged"`
 	Mergeable          bool   `json:"mergeable"`
 	MergeableState     string `json:"mergeable_state"`
-	Merged_by          User   `json:"merged_by"`
+	MergedBy           User   `json:"merged_by"`
 	Comments           int    `json:"comments"`
 	ReviewComments     int    `json:"review_comments"`
 	Commits            int    `json:"commits"`
@@ -183,6 +187,18 @@ func (pr *PullRequest) TotalChanges() int {
 		total += f.Changes
 	}
 	return total
+}
+
+func (pr *PullRequest) AdditionsStr() string {
+	return format(pr.Additions)
+}
+
+func (pr *PullRequest) DeletionsStr() string {
+	return format(pr.Deletions)
+}
+
+func (pr *PullRequest) CommentsStr() string {
+	return format(pr.Comments)
 }
 
 // Subdirectories returns a sorted slice of subdirectories which include
