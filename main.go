@@ -17,7 +17,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -25,8 +24,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/cockroach/util"
 	"github.com/cockroachdb/cockroach/util/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 )
 
 // pflagValue wraps flag.Value and implements the extra methods of the
@@ -98,7 +99,7 @@ https://help.github.com/articles/creating-an-access-token-for-command-line-use/
 
 When creating a token, ensure that only the public_repo permission is enabled.
 `,
-	Example: `  repo-digest --repo=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
+	Example: `  repo-digest --repos=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
 }
 
@@ -106,10 +107,11 @@ When creating a token, ensure that only the public_repo permission is enabled.
 type Context struct {
 	Repos        []string  // Repositories (:owner/:repo)
 	Token        string    // Access token
-	FetchSince   time.Time // Fetch all opened and closed PRs since this time
+	Since        string    // RFC 3339 date
 	Template     string    // HTML template filename
 	OutDir       string    // Output directory
 	InlineStyles bool      // Inline style into generated html
+	FetchSince   time.Time // Fetch all opened and closed PRs since this time
 	acceptHeader string    // Optional Accept: header value
 }
 
@@ -117,21 +119,27 @@ var ctx = Context{}
 
 func runDigest(c *cobra.Command, args []string) error {
 	if len(ctx.Repos) == 0 {
-		return errors.New("repositor(ies) not specified; use --repo=:owner/:repo[,:owner/:repo,...]")
+		return util.Errorf("repositor(ies) not specified; use --repos=:owner/:repo[,:owner/:repo,...]")
 	}
 	if len(ctx.Template) == 0 {
-		return errors.New("template not specified; use --template=:html_template")
+		return util.Errorf("template not specified; use --template=:html_template")
 	}
+
+	// Parse the "fetch since" date and recast it as a local timezone.
+	var err error
+	if ctx.FetchSince, err = time.Parse(time.RFC3339, ctx.Since); err != nil {
+		return util.Errorf("failed to parse --since=%s: %s", ctx.Since, err)
+	}
+	ctx.FetchSince = ctx.FetchSince.Local()
+
 	log.Infof("fetching GitHub data for repositor(ies) %s", ctx.Repos)
 	open, closed, err := Query(&ctx)
 	if err != nil {
-		log.Errorf("failed to query data: %s", err)
-		return nil
+		return util.Errorf("failed to query data: %s", err)
 	}
 	log.Infof("creating digest for repositor(ies) %s", ctx.Repos)
 	if err := Digest(&ctx, open, closed); err != nil {
-		log.Errorf("failed to create digest: %s", err)
-		return nil
+		return util.Errorf("failed to create digest: %s", err)
 	}
 	var latestTime time.Time
 	for _, pr := range open {
@@ -147,11 +155,31 @@ func runDigest(c *cobra.Command, args []string) error {
 	if len(open)+len(closed) == 0 {
 		latestTime = time.Now()
 	}
+	latestTime = latestTime.Local()
+	fmt.Fprintf(os.Stdout, "since: %s\n", ctx.FetchSince.Format(time.RFC3339))
+	fmt.Fprintf(os.Stdout, "prettysince: %s\n", ctx.FetchSince.Format(time.UnixDate))
 	fmt.Fprintf(os.Stdout, "nextsince: %s\n", latestTime.Format(time.RFC3339))
 	return nil
 }
 
+var genDocCmd = &cobra.Command{
+	Use:   "gendoc",
+	Short: "generate markdown documentation",
+	Long: `
+Generate markdown documentation
+`,
+	Example: `  repo-digest gendoc`,
+	RunE:    runGenDoc,
+}
+
+func runGenDoc(c *cobra.Command, args []string) error {
+	return doc.GenMarkdown(digestCmd, os.Stdout)
+}
+
 func init() {
+	digestCmd.AddCommand(
+		genDocCmd,
+	)
 	// Map any flags registered in the standard "flag" package into the
 	// top-level command.
 	pf := digestCmd.PersistentFlags()
@@ -159,22 +187,15 @@ func init() {
 		pf.Var(pflagValue{f.Value}, normalizeStdFlagName(f.Name), f.Usage)
 	})
 	now := time.Now().Local()
-	now = now.Truncate(time.Hour * 24)
+	now = now.Add(-24 * time.Hour)
 	defaultSince := now.Format(time.RFC3339)
-	var since string
 	// Add persistent flags to the top-level command.
 	digestCmd.PersistentFlags().StringSliceVarP(&ctx.Repos, "repos", "r", ctx.Repos, reposDesc)
-	digestCmd.PersistentFlags().StringVarP(&since, "since", "s", defaultSince, fetchSinceDesc)
+	digestCmd.PersistentFlags().StringVarP(&ctx.Since, "since", "s", defaultSince, fetchSinceDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.OutDir, "outdir", "o", ctx.OutDir, outDirDesc)
 	digestCmd.PersistentFlags().BoolVar(&ctx.InlineStyles, "inline-styles", true, inlineStylesDesc)
-
-	var err error
-	if ctx.FetchSince, err = time.Parse(time.RFC3339, since); err != nil {
-		log.Errorf("failed to parse --since=%s: %s", since, err)
-		os.Exit(1)
-	}
 }
 
 // Run ...
