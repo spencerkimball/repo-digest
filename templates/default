@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link href=".../github-flavored-markdown.css" media="all" rel="stylesheet" type="text/css" />
+    <link href="//cdnjs.cloudflare.com/ajax/libs/octicons/2.1.2/octicons.css" media="all" rel="stylesheet" type="text/css" />
+    <style type="text/css">
+body {
+    padding: 25px;
+    width: 800px;
+}
+
+a, u {
+    text-decoration: none;
+    color: #141494;
+}
+
+table {
+    width: 100%;
+    border-spacing: 0px;
+}
+
+td {
+    padding: 40px;
+}
+
+.logo {
+    line-height: 60px;
+}
+
+.section-title {
+    font-family: Arial-BoldMT;
+    font-size: 22px;
+    color: #262649;
+    line-height: 48px;
+}
+
+.open-request {
+    border: 1px solid #1717A4;
+}
+
+.closed-request {
+    border: 1px solid #CDCDCD;
+}
+
+.header {
+    background: #F7F7F7;
+}
+
+.title {
+    font-family: Arial-BoldMT;
+    font-size: 18px;
+    color: #141494;
+    line-height: 32px;
+}
+
+.avatar {
+    height: 50px;
+}
+
+.stats {
+    font-family: ArialMT;
+    font-size: 12px;
+    color: #262649;
+    line-height: 24px;
+}
+
+.rank-stats {
+    font-family: ArialMT;
+    font-size: 12px;
+    color: #262649;
+    line-height: 18px;
+}
+
+.body {
+    font-family: ArialMT;
+    font-size: 12px;
+    color: #262649;
+    line-height: 16px;
+}
+
+.rank {
+    font-size: 14px;
+    color: #141494;
+}
+
+.line-count {
+    font-size: 12px;
+    color: #141494;
+}
+
+.importance {
+    font-family: Arial-BoldMT;
+    font-size: 8px;
+    color: #C9C9C9;
+    line-height: 16px;
+}
+
+.subdirectory {
+    font-family: Arial-BoldMT;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+.spacing {
+    line-height: 24px;
+}
+    </style>
+    <title>Daily Digest</title>
+  </head>
+  <body>
+    <div class="section-title">Opened Pull Requests</div>
+		{{range .Open}}
+    <table class="open-request">
+      <tr class="header">
+        <td class="title">
+          <a href="{{ .HtmlURL }}">{{ .Title }}</a>
+          <div class="stats">Opened by {{ .User.Login }} at {{ .CreatedAtStr }} with {{ .AdditionsStr }} additions, {{ .DeletionsStr }} deletions, {{ .CommentsStr }} comments</div>
+          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">SIZE</span>&nbsp;&nbsp;&nbsp;&nbsp;
+            {{ range $index, $el := .Subdirectories}}
+              <span class="subdirectory">{{if $index}},&nbsp;&nbsp;{{end}}{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChangesStr}}</span>
+            {{end}}
+          </div>
+        </td>
+        <td class="title"><img src="{{ .User.AvatarURL }}" class="avatar"/></td>
+      </tr>
+      <tr class="body">
+        <td>
+      	  <article class="markdown-body entry-content">{{ .Body | markDown }}</article>
+        </td>
+      </tr>
+    </table>
+    <div class="spacer">&nbsp</div>
+    {{else}}
+    <div class="title">No new pull requests were opened</div>
+    {{end}}
+
+    <div class="section-title">Closed Pull Requests</div>
+		{{range .Closed}}
+    <table class="closed-request">
+      <tr class="header">
+        <td class="title">
+          <a href="{{ .HtmlURL }}">{{ .Title }}</a>
+          <div class="stats">Closed by {{ .MergedBy.Login }} at {{ .ClosedAtStr }} with {{ .AdditionsStr }} additions, {{ .DeletionsStr }} deletions, {{ .CommentsStr }} comments</div>
+          <div class="rank-stats"><span class="rank">{{ .Class }}</span>&nbsp;<span class="importance">SIZE</span>&nbsp;&nbsp;&nbsp;&nbsp;
+            {{ range $index, $el := .Subdirectories}}
+              <span class="subdirectory">{{if $index}},&nbsp;&nbsp;{{end}}{{$el.Name}}</span>: <span class="line-count">{{$el.TotalChangesStr}}</span>
+            {{end}}
+          </div>
+        </td>
+        <td class="title"><img src="{{ .User.AvatarURL }}" class="avatar"/></td>
+      </tr>
+      <tr class="body">
+        <td>
+      	  <article class="markdown-body entry-content">{{ .Body | markDown }}</article>
+        </td>
+      </tr>
+    </table>
+    <div class="spacer">&nbsp</div>
+    {{else}}
+    <div class="title">No pull requests were closed</div>
+    {{end}}
+  </body>
+</html>

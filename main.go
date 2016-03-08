@@ -115,7 +115,9 @@ type Context struct {
 	acceptHeader string    // Optional Accept: header value
 }
 
-var ctx = Context{}
+var ctx = Context{
+	Template: "templates/default",
+}
 
 func runDigest(c *cobra.Command, args []string) error {
 	if len(ctx.Repos) == 0 {
@@ -206,7 +208,7 @@ func Run(args []string) error {
 
 func main() {
 	if err := Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "failed running command %q: %v", os.Args[1:], err)
+		fmt.Fprintf(os.Stderr, "failed running command %q: %v\n", os.Args[1:], err)
 		os.Exit(1)
 	}
 }
