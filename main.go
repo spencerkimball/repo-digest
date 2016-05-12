@@ -58,6 +58,8 @@ func mustParseTime3339(tStr string) time.Time {
 	return t
 }
 
+const hostDesc = "GitHub API hostname, including scheme"
+
 const accessTokenDesc = "GitHub access token for authorized rate limits"
 
 const fetchSinceDesc = "Fetch all opened and closed pull requests since this date"
@@ -98,6 +100,12 @@ To generate an access token with authorized rate limits (5000/hr), see:
 https://help.github.com/articles/creating-an-access-token-for-command-line-use/
 
 When creating a token, ensure that only the public_repo permission is enabled.
+
+For use against privately hosted github enterprise instances, the root API
+address can be specified with the --host flag.  Note that while the core github
+API root is specified via subdomain (https://api.github.com/), private enterprise
+instances generally have an API root specified by URL path
+(https://github.example.com/api/v3/, for example).
 `,
 	Example: `  repo-digest --repos=cockroachdb/cockroach --token=f87456b1112dadb2d831a5792bf2ca9a6afca7bc`,
 	RunE:    runDigest,
@@ -105,6 +113,7 @@ When creating a token, ensure that only the public_repo permission is enabled.
 
 // Context holds config information used to query GitHub.
 type Context struct {
+	Host         string    // Github API Hostname (https://api.github.com)
 	Repos        []string  // Repositories (:owner/:repo)
 	Token        string    // Access token
 	Since        string    // RFC 3339 date
@@ -192,6 +201,7 @@ func init() {
 	now = now.Add(-24 * time.Hour)
 	defaultSince := now.Format(time.RFC3339)
 	// Add persistent flags to the top-level command.
+	digestCmd.PersistentFlags().StringVar(&ctx.Host, "host", "https://api.github.com/", hostDesc)
 	digestCmd.PersistentFlags().StringSliceVarP(&ctx.Repos, "repos", "r", ctx.Repos, reposDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Since, "since", "s", defaultSince, fetchSinceDesc)
 	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)

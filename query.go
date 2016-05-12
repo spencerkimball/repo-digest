@@ -31,10 +31,6 @@ import (
 //   for a single utility.
 
 const (
-	githubAPI = "https://api.github.com/"
-)
-
-const (
 	// tinyPR threshold of additions and deletions.
 	tinyPR = 20
 	// smallPR threshold of additions and deletions.
@@ -293,7 +289,7 @@ func Query(c *Context) (open, closed []*PullRequest, err error) {
 // day's worth, whichever is greater.
 func QueryPullRequests(c *Context, repo string) ([]*PullRequest, []*PullRequest, error) {
 	log.Infof("querying pull requests from %s opened or closed after %s", repo, c.FetchSince.Format(time.RFC3339))
-	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=updated&direction=desc", githubAPI, repo)
+	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=updated&direction=desc", c.Host, repo)
 	open, closed := []*PullRequest{}, []*PullRequest{}
 	total := 0
 	var err error
