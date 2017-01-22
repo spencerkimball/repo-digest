@@ -97,7 +97,7 @@ func fetchURL(c *Config, url string, value interface{}) (string, error) {
 			time.Sleep(t.expiration())
 		case *httpError:
 			// For now, regard HTTP errors as permanent.
-			log.Printf("unable to fetch %q: %s\n", url, err)
+			log.Printf("unable to fetch %q: %v\n", url, t.resp)
 			return "", nil
 		default:
 			// Retry with exponential backoff on random connection and networking errors.
