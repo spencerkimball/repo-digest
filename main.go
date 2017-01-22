@@ -19,12 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -143,12 +143,12 @@ func runDigest(c *cobra.Command, args []string) error {
 	}
 	cfg.FetchSince = cfg.FetchSince.Local()
 
-	log.Infof(ctx, "fetching GitHub data for repositor(ies) %s", cfg.Repos)
+	log.Printf("fetching GitHub data for repositor(ies) %s\n", cfg.Repos)
 	open, closed, err := Query(&cfg)
 	if err != nil {
 		return errors.Errorf("failed to query data: %s", err)
 	}
-	log.Infof(ctx, "creating digest for repositor(ies) %s", cfg.Repos)
+	log.Printf("creating digest for repositor(ies) %s\n", cfg.Repos)
 	if err := Digest(&cfg, open, closed); err != nil {
 		return errors.Errorf("failed to create digest: %s", err)
 	}
