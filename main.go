@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cockroachdb/cockroach/util"
-	"github.com/cockroachdb/cockroach/util/log"
+	"github.com/cockroachdb/cockroach/pkg/util/log"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 )
@@ -111,8 +111,8 @@ instances generally have an API root specified by URL path
 	RunE:    runDigest,
 }
 
-// Context holds config information used to query GitHub.
-type Context struct {
+// Config holds config information used to query GitHub.
+type Config struct {
 	Host         string    // Github API Hostname (https://api.github.com)
 	Repos        []string  // Repositories (:owner/:repo)
 	Token        string    // Access token
@@ -124,33 +124,33 @@ type Context struct {
 	acceptHeader string    // Optional Accept: header value
 }
 
-var ctx = Context{
+var cfg = Config{
 	Template: "templates/default",
 }
 
 func runDigest(c *cobra.Command, args []string) error {
-	if len(ctx.Repos) == 0 {
-		return util.Errorf("repositor(ies) not specified; use --repos=:owner/:repo[,:owner/:repo,...]")
+	if len(cfg.Repos) == 0 {
+		return errors.Errorf("repositor(ies) not specified; use --repos=:owner/:repo[,:owner/:repo,...]")
 	}
-	if len(ctx.Template) == 0 {
-		return util.Errorf("template not specified; use --template=:html_template")
+	if len(cfg.Template) == 0 {
+		return errors.Errorf("template not specified; use --template=:html_template")
 	}
 
 	// Parse the "fetch since" date and recast it as a local timezone.
 	var err error
-	if ctx.FetchSince, err = time.Parse(time.RFC3339, ctx.Since); err != nil {
-		return util.Errorf("failed to parse --since=%s: %s", ctx.Since, err)
+	if cfg.FetchSince, err = time.Parse(time.RFC3339, cfg.Since); err != nil {
+		return errors.Errorf("failed to parse --since=%s: %s", cfg.Since, err)
 	}
-	ctx.FetchSince = ctx.FetchSince.Local()
+	cfg.FetchSince = cfg.FetchSince.Local()
 
-	log.Infof("fetching GitHub data for repositor(ies) %s", ctx.Repos)
-	open, closed, err := Query(&ctx)
+	log.Infof(ctx, "fetching GitHub data for repositor(ies) %s", cfg.Repos)
+	open, closed, err := Query(&cfg)
 	if err != nil {
-		return util.Errorf("failed to query data: %s", err)
+		return errors.Errorf("failed to query data: %s", err)
 	}
-	log.Infof("creating digest for repositor(ies) %s", ctx.Repos)
-	if err := Digest(&ctx, open, closed); err != nil {
-		return util.Errorf("failed to create digest: %s", err)
+	log.Infof(ctx, "creating digest for repositor(ies) %s", cfg.Repos)
+	if err := Digest(&cfg, open, closed); err != nil {
+		return errors.Errorf("failed to create digest: %s", err)
 	}
 	var latestTime time.Time
 	for _, pr := range open {
@@ -167,8 +167,8 @@ func runDigest(c *cobra.Command, args []string) error {
 		latestTime = time.Now()
 	}
 	latestTime = latestTime.Local()
-	fmt.Fprintf(os.Stdout, "since: %s\n", ctx.FetchSince.Format(time.RFC3339))
-	fmt.Fprintf(os.Stdout, "prettysince: %s\n", ctx.FetchSince.Format(time.UnixDate))
+	fmt.Fprintf(os.Stdout, "since: %s\n", cfg.FetchSince.Format(time.RFC3339))
+	fmt.Fprintf(os.Stdout, "prettysince: %s\n", cfg.FetchSince.Format(time.UnixDate))
 	fmt.Fprintf(os.Stdout, "nextsince: %s\n", latestTime.Format(time.RFC3339))
 	return nil
 }
@@ -201,13 +201,13 @@ func init() {
 	now = now.Add(-24 * time.Hour)
 	defaultSince := now.Format(time.RFC3339)
 	// Add persistent flags to the top-level command.
-	digestCmd.PersistentFlags().StringVar(&ctx.Host, "host", "https://api.github.com/", hostDesc)
-	digestCmd.PersistentFlags().StringSliceVarP(&ctx.Repos, "repos", "r", ctx.Repos, reposDesc)
-	digestCmd.PersistentFlags().StringVarP(&ctx.Since, "since", "s", defaultSince, fetchSinceDesc)
-	digestCmd.PersistentFlags().StringVarP(&ctx.Token, "token", "t", ctx.Token, accessTokenDesc)
-	digestCmd.PersistentFlags().StringVarP(&ctx.Template, "template", "p", ctx.Template, templateDesc)
-	digestCmd.PersistentFlags().StringVarP(&ctx.OutDir, "outdir", "o", ctx.OutDir, outDirDesc)
-	digestCmd.PersistentFlags().BoolVar(&ctx.InlineStyles, "inline-styles", true, inlineStylesDesc)
+	digestCmd.PersistentFlags().StringVar(&cfg.Host, "host", "https://api.github.com/", hostDesc)
+	digestCmd.PersistentFlags().StringSliceVarP(&cfg.Repos, "repos", "r", cfg.Repos, reposDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.Since, "since", "s", defaultSince, fetchSinceDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.Token, "token", "t", cfg.Token, accessTokenDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.Template, "template", "p", cfg.Template, templateDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.OutDir, "outdir", "o", cfg.OutDir, outDirDesc)
+	digestCmd.PersistentFlags().BoolVar(&cfg.InlineStyles, "inline-styles", true, inlineStylesDesc)
 }
 
 // Run ...

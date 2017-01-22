@@ -50,7 +50,7 @@ func markDowner(args ...interface{}) string {
 
 // Digest computes the digest from provided slices of open and
 // closed pull requests.
-func Digest(c *Context, open, closed []*PullRequest) error {
+func Digest(c *Config, open, closed []*PullRequest) error {
 	sortedOpen := PullRequests(open)
 	sortedClosed := PullRequests(closed)
 	sort.Sort(sortedOpen)
