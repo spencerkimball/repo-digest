@@ -171,6 +171,12 @@ type PullRequest struct {
 	Deletions          int    `json:"deletions"`
 	ChangedFiles       int    `json:"changed_files"`
 
+	CommitMessages []struct {
+		Commit struct {
+			Message string `json:"message"`
+			URL     string `json:"url"`
+		} `json:"commit"`
+	}
 	Files []*File `json:"-"`
 }
 
@@ -349,6 +355,10 @@ func QueryDetailedPullRequests(c *Config, prs []*PullRequest) error {
 	for i, pr := range prs {
 		// Fetch detailed pull request info.
 		if _, err := fetchURL(c, pr.URL, pr); err != nil {
+			return err
+		}
+		// Fetch commit messages.
+		if _, err := fetchURL(c, pr.URL+"/commits", &pr.CommitMessages); err != nil {
 			return err
 		}
 		// Fetch files changed by pull request.
