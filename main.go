@@ -62,6 +62,8 @@ const hostDesc = "GitHub API hostname, including scheme"
 
 const accessTokenDesc = "GitHub access token for authorized rate limits"
 
+const fetchBeforeDesc = "Fetch all opened and closed pull requests up until this date"
+
 const fetchSinceDesc = "Fetch all opened and closed pull requests since this date"
 
 const reposDesc = "GitHub repositories, formatted as comma-separated list :owner/:repo[,:owner/:repo,...]"
@@ -116,10 +118,12 @@ type Config struct {
 	Host         string    // Github API Hostname (https://api.github.com)
 	Repos        []string  // Repositories (:owner/:repo)
 	Token        string    // Access token
+	Before       string    // RFC 3339 date
 	Since        string    // RFC 3339 date
 	Template     string    // HTML template filename
 	OutDir       string    // Output directory
 	InlineStyles bool      // Inline style into generated html
+	Now          time.Time // Current time for this run of the repo-digest
 	FetchSince   time.Time // Fetch all opened and closed PRs since this time
 	acceptHeader string    // Optional Accept: header value
 }
@@ -128,27 +132,39 @@ var cfg = Config{
 	Template: "templates/default",
 }
 
-func runDigest(c *cobra.Command, args []string) error {
+func initConfig() error {
 	if len(cfg.Repos) == 0 {
-		return errors.Errorf("repositor(ies) not specified; use --repos=:owner/:repo[,:owner/:repo,...]")
+		return errors.Errorf("repositories not specified; use --repos=:owner/:repo[,:owner/:repo,...]")
 	}
 	if len(cfg.Template) == 0 {
 		return errors.Errorf("template not specified; use --template=:html_template")
 	}
 
-	// Parse the "fetch since" date and recast it as a local timezone.
+	// Parse dates and recast as local timezone.
 	var err error
+	if cfg.Now, err = time.Parse(time.RFC3339, cfg.Before); err != nil {
+		return errors.Errorf("failed to parse --before=%s: %s", cfg.Before, err)
+	}
+	cfg.Now = cfg.Now.Local()
 	if cfg.FetchSince, err = time.Parse(time.RFC3339, cfg.Since); err != nil {
 		return errors.Errorf("failed to parse --since=%s: %s", cfg.Since, err)
 	}
 	cfg.FetchSince = cfg.FetchSince.Local()
 
-	log.Printf("fetching GitHub data for repositor(ies) %s\n", cfg.Repos)
+	return nil
+}
+
+func runDigest(c *cobra.Command, args []string) error {
+	if err := initConfig(); err != nil {
+		return err
+	}
+
+	log.Printf("fetching GitHub data for repositories %s\n", cfg.Repos)
 	open, closed, err := Query(&cfg)
 	if err != nil {
 		return errors.Errorf("failed to query data: %s", err)
 	}
-	log.Printf("creating digest for repositor(ies) %s\n", cfg.Repos)
+	log.Printf("creating digest for repositories %s\n", cfg.Repos)
 	if err := Digest(&cfg, open, closed); err != nil {
 		return errors.Errorf("failed to create digest: %s", err)
 	}
@@ -173,6 +189,38 @@ func runDigest(c *cobra.Command, args []string) error {
 	return nil
 }
 
+var countMonthlyCmd = &cobra.Command{
+	Use:   "count-monthly",
+	Short: "count monthly PRs",
+	Long: `
+Output monthly counts of pull requests
+`,
+	Example: `  repo-digest count-monthly`,
+	RunE:    runCountMonthly,
+}
+
+func runCountMonthly(c *cobra.Command, args []string) error {
+	if err := initConfig(); err != nil {
+		return err
+	}
+
+	log.Printf("counting monthly pull requests for repositories %s", cfg.Repos)
+
+	counts, err := CountMonthly(&cfg)
+	if err != nil {
+		return err
+	}
+
+	var idx int
+	for t := cfg.Now; !t.Before(cfg.FetchSince); {
+		fmt.Printf("%s, %d\n", t, counts[idx])
+		t = t.AddDate(0, -1, 0)
+		idx++
+	}
+
+	return nil
+}
+
 var genDocCmd = &cobra.Command{
 	Use:   "gendoc",
 	Short: "generate markdown documentation",
@@ -189,6 +237,7 @@ func runGenDoc(c *cobra.Command, args []string) error {
 
 func init() {
 	digestCmd.AddCommand(
+		countMonthlyCmd,
 		genDocCmd,
 	)
 	// Map any flags registered in the standard "flag" package into the
@@ -197,13 +246,15 @@ func init() {
 	flag.VisitAll(func(f *flag.Flag) {
 		pf.Var(pflagValue{f.Value}, normalizeStdFlagName(f.Name), f.Usage)
 	})
-	now := time.Now().Local()
-	now = now.Add(-24 * time.Hour)
-	defaultSince := now.Format(time.RFC3339)
+	defaultBefore := time.Now().Local()
+	defaultBeforeStr := defaultBefore.Format(time.RFC3339)
+	defaultSince := defaultBefore.Add(-24 * time.Hour)
+	defaultSinceStr := defaultSince.Format(time.RFC3339)
 	// Add persistent flags to the top-level command.
 	digestCmd.PersistentFlags().StringVar(&cfg.Host, "host", "https://api.github.com/", hostDesc)
 	digestCmd.PersistentFlags().StringSliceVarP(&cfg.Repos, "repos", "r", cfg.Repos, reposDesc)
-	digestCmd.PersistentFlags().StringVarP(&cfg.Since, "since", "s", defaultSince, fetchSinceDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.Before, "before", "b", defaultBeforeStr, fetchBeforeDesc)
+	digestCmd.PersistentFlags().StringVarP(&cfg.Since, "since", "s", defaultSinceStr, fetchSinceDesc)
 	digestCmd.PersistentFlags().StringVarP(&cfg.Token, "token", "t", cfg.Token, accessTokenDesc)
 	digestCmd.PersistentFlags().StringVarP(&cfg.Template, "template", "p", cfg.Template, templateDesc)
 	digestCmd.PersistentFlags().StringVarP(&cfg.OutDir, "outdir", "o", cfg.OutDir, outDirDesc)

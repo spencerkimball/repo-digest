@@ -379,6 +379,67 @@ func QueryDetailedPullRequests(c *Config, prs []*PullRequest) error {
 	return nil
 }
 
+func CountMonthly(c *Config) ([]int, error) {
+	var counts []int
+	for t := c.Now; !t.Before(c.FetchSince); {
+		counts = append(counts, 0)
+		t = t.AddDate(0, -1, 0)
+	}
+	for _, repo := range c.Repos {
+		if err := CountMonthlyPullRequests(c, repo, counts); err != nil {
+			return nil, err
+		}
+	}
+	return counts, nil
+}
+
+// CountMonthlyPullRequests queries all pull requests by created data
+// and adds counts to the specified counts slice by month.
+func CountMonthlyPullRequests(c *Config, repo string, counts []int) error {
+	log.Printf("counting monthly pull requests from %s after %s", repo, c.FetchSince.Format(time.RFC3339))
+	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=created&direction=desc", c.Host, repo)
+
+	var idx int
+	var monthTotal int
+	t := c.Now
+	nextT := t.AddDate(0, -1, 0)
+
+	fillCounts := func(prT time.Time) {
+		for prT.Before(nextT) {
+			counts[idx] += monthTotal
+			idx++
+			monthTotal = 0
+			t = nextT
+			nextT = t.AddDate(0, -1, 0)
+		}
+	}
+
+	for done := false; len(url) > 0 && !done; {
+		fetched := []*PullRequest{}
+		var err error
+		url, err = fetchURL(c, url, &fetched)
+		if err != nil {
+			return err
+		}
+		for _, pr := range fetched {
+			prT, err := time.Parse(time.RFC3339, pr.CreatedAt)
+			if err != nil {
+				return err
+			}
+			// Break out of loop if updated timestamp is <= FetchSince.
+			if !c.FetchSince.Before(prT) {
+				done = true
+				break
+			}
+			fillCounts(prT)
+			monthTotal++
+		}
+	}
+	fillCounts(c.FetchSince)
+	counts[idx] += monthTotal
+	return nil
+}
+
 func format(n int) string {
 	in := strconv.FormatInt(int64(n), 10)
 	out := make([]byte, len(in)+(len(in)-2+int(in[0]/'0'))/3)
