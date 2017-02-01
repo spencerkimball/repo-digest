@@ -17,17 +17,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"time"
-
-	"github.com/cockroachdb/cockroach/util/log"
 )
+
+var ctx = context.Background()
 
 // A rateLimitError is returned when the requestor's rate limit has
 // been exceeded.
@@ -64,7 +66,7 @@ var linkRE = regexp.MustCompile(`^<(.*)>; rel="next", <(.*)>; rel="last".*`)
 
 // fetchURL fetches the specified URL using the HTTP client. Returns
 // the next URL if the result is paged or an error on failure.
-func fetchURL(c *Context, url string, value interface{}) (string, error) {
+func fetchURL(c *Config, url string, value interface{}) (string, error) {
 	// Create request and add mandatory user agent and accept encoding headers.
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -91,15 +93,15 @@ func fetchURL(c *Context, url string, value interface{}) (string, error) {
 		switch t := err.(type) {
 		case *rateLimitError:
 			// Sleep until the expiration of the rate limit regime (+ 1s for clock offsets).
-			log.Error(t)
+			log.Println(t)
 			time.Sleep(t.expiration())
 		case *httpError:
 			// For now, regard HTTP errors as permanent.
-			log.Errorf("unable to fetch %q: %s", url, err)
+			log.Printf("unable to fetch %q: %v\n", url, t.resp)
 			return "", nil
 		default:
 			// Retry with exponential backoff on random connection and networking errors.
-			log.Error(t)
+			log.Println(t)
 			backoff := int64((1 << i)) * 50000000 // nanoseconds, starting at 50ms
 			if backoff > 1000000000 {
 				backoff = 1000000000
@@ -108,7 +110,7 @@ func fetchURL(c *Context, url string, value interface{}) (string, error) {
 		}
 	}
 	if resp == nil {
-		log.Errorf("unable to fetch %q", url)
+		log.Printf("unable to fetch %q\n", url)
 		return "", nil
 	}
 
@@ -136,10 +138,7 @@ func fetchURL(c *Context, url string, value interface{}) (string, error) {
 // doFetch performs the GET https request. A rateLimitError is
 // returned in the event that the access token has exceeded its hourly
 // limit.
-func doFetch(c *Context, url string, req *http.Request) (*http.Response, error) {
-	if log.V(1) {
-		log.Infof("fetching %q...", url)
-	}
+func doFetch(c *Config, url string, req *http.Request) (*http.Response, error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

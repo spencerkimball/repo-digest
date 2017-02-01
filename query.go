@@ -18,13 +18,12 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"time"
-
-	"github.com/cockroachdb/cockroach/util/log"
 )
 
 // TODO(spencer): combine this code with the code in stargazers
@@ -265,7 +264,7 @@ func (pr *PullRequest) ClosedAtStr() string {
 
 // Queries pull requests for the repository. Returns a slice each for
 // open and closed pull requests.
-func Query(c *Context) (open, closed []*PullRequest, err error) {
+func Query(c *Config) (open, closed []*PullRequest, err error) {
 	for _, repo := range c.Repos {
 		var os []*PullRequest
 		var cs []*PullRequest
@@ -287,14 +286,14 @@ func Query(c *Context) (open, closed []*PullRequest, err error) {
 
 // QueryPullRequests queries all pull requests from the repo or a
 // day's worth, whichever is greater.
-func QueryPullRequests(c *Context, repo string) ([]*PullRequest, []*PullRequest, error) {
-	log.Infof("querying pull requests from %s opened or closed after %s", repo, c.FetchSince.Format(time.RFC3339))
+func QueryPullRequests(c *Config, repo string) ([]*PullRequest, []*PullRequest, error) {
+	log.Printf("querying pull requests from %s opened or closed after %s\n", repo, c.FetchSince.Format(time.RFC3339))
 	url := fmt.Sprintf("%srepos/%s/pulls?state=all&sort=updated&direction=desc", c.Host, repo)
 	open, closed := []*PullRequest{}, []*PullRequest{}
 	total := 0
 	var err error
 	var done bool
-	fmt.Printf("*** 0 open 0 closed, 0 total pull requests")
+	fmt.Println("*** 0 open 0 closed, 0 total pull requests")
 	for len(url) > 0 && !done {
 		fetched := []*PullRequest{}
 		url, err = fetchURL(c, url, &fetched)
@@ -335,7 +334,7 @@ func QueryPullRequests(c *Context, repo string) ([]*PullRequest, []*PullRequest,
 					closed = append(closed, pr)
 				}
 			}
-			fmt.Printf("\r*** %s open %s closed %s total pull requests", format(len(open)), format(len(closed)), format(total))
+			fmt.Printf("\r*** %s open %s closed %s total pull requests\n", format(len(open)), format(len(closed)), format(total))
 		}
 	}
 	fmt.Printf("\n")
@@ -344,9 +343,9 @@ func QueryPullRequests(c *Context, repo string) ([]*PullRequest, []*PullRequest,
 
 // QueryDetailedPullRequests queries detailed info on each pull request
 // in the provided slice.
-func QueryDetailedPullRequests(c *Context, prs []*PullRequest) error {
-	log.Infof("querying detailed info for each of %s pull requests...", format(len(prs)))
-	fmt.Printf("*** detailed info for 0 pull requests")
+func QueryDetailedPullRequests(c *Config, prs []*PullRequest) error {
+	log.Printf("querying detailed info for each of %s pull requests...\n", format(len(prs)))
+	fmt.Println("*** detailed info for 0 pull requests")
 	for i, pr := range prs {
 		// Fetch detailed pull request info.
 		if _, err := fetchURL(c, pr.URL, pr); err != nil {
@@ -364,7 +363,7 @@ func QueryDetailedPullRequests(c *Context, prs []*PullRequest) error {
 			}
 		}
 		pr.Files = newFiles
-		fmt.Printf("\r*** detailed info for %s pull requests", format(i+1))
+		fmt.Printf("\r*** detailed info for %s pull requests\n", format(i+1))
 	}
 	fmt.Printf("\n")
 	return nil
