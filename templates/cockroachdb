@@ -129,7 +129,16 @@ td {
       </tr>
       <tr class="body">
         <td>
-      	  <article class="markdown-body entry-content">{{ .Body | markDown }}</article>
+          <article class="markdown-body entry-content">
+            {{ .Body | markDown }}
+            <br />
+            Commits:
+            <ul>
+            {{ range .CommitMessages }}
+            <li><pre>{{ .Commit.Message }}</pre></li>
+            {{ end }}
+            </ul>
+          </article>
         </td>
       </tr>
     </table>
@@ -155,7 +164,16 @@ td {
       </tr>
       <tr class="body">
         <td>
-      	  <article class="markdown-body entry-content">{{ .Body | markDown }}</article>
+          <article class="markdown-body entry-content">
+            {{ .Body | markDown }}
+            <br />
+            Commits:
+            <ul>
+            {{ range .CommitMessages }}
+            <li><pre>{{ .Commit.Message }}</pre></li>
+            {{ end }}
+            </ul>
+          </article>
         </td>
       </tr>
     </table>
