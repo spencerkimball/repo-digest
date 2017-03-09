@@ -110,7 +110,7 @@ td {
   </head>
   <body>
     <div class="logo">
-      <img src="http://www.cockroachlabs.com/wp-content/themes/cockroach-labs/images/CL_Logo_Horizontal.png" height="25px" valign="top"/>
+      <img src="https://www.cockroachlabs.com/images/CL_Logo_Horizontal.png" height="25px" valign="top"/>
     </div>
     <div class="section-title">Opened Pull Requests</div>
 		{{range .Open}}
