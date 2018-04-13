@@ -6,8 +6,7 @@
     <link href="//cdnjs.cloudflare.com/ajax/libs/octicons/2.1.2/octicons.css" media="all" rel="stylesheet" type="text/css" />
     <style type="text/css">
 body {
-    padding: 25px;
-    width: 800px;
+    max-width: 720px;
 }
 
 a, u {
@@ -21,7 +20,7 @@ table {
 }
 
 td {
-    padding: 40px;
+    padding: 10px;
 }
 
 .logo {
@@ -151,7 +150,7 @@ td {
         <td class="title"><img src="{{ .User.AvatarURL }}" class="avatar"/></td>
       </tr>
       <tr class="body">
-        <td>
+        <td colspan="2">
       	  <article class="markdown-body entry-content">{{ .Body | markDown }}</article>
         </td>
       </tr>
