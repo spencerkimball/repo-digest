@@ -323,6 +323,10 @@ func QueryPullRequests(c *Config, repo string) ([]*PullRequest, []*PullRequest, 
 			case "open":
 				date = pr.CreatedAt
 			case "closed":
+				// Ignore unmerged PRs.
+				if pr.MergedAt == "" {
+					continue
+				}
 				date = pr.ClosedAt
 			default:
 				continue
